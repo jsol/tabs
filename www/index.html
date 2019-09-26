@@ -33,6 +33,25 @@
         render()
     }
 
+    function tabRequest(success, type, data, id) {
+      const opts = {
+        type: type,
+        url: '/v1/tab',
+        contentType: 'application/json',
+        dataType: 'json',
+        success: success
+      }
+
+      if (id) {
+        opts.url += '/' + id
+      }
+
+      if (data) {
+        opts.data = JSON.stringify(data)
+      }
+      $.ajax(opts)
+    }
+
     function parseNotes() {
         progression.length = 0
         $('#notes').val().split(' ').forEach(note => {
@@ -91,8 +110,26 @@
     const rawscale = [ 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
     const scale = []
 
+    let store = {}
+    let current = null
+
     for (let i = 1; i <= 10; i ++) {
         rawscale.forEach(note => scale.push(note + i))
+    }
+
+    function refreshTitles() {
+        tabRequest(res => {
+          console.log(res)
+          store = {}
+          $('#existing')
+            .find('option')
+            .remove()
+
+          res.forEach(t => {
+            $('#existing').append($('<option>', { value: t.uuid }).text(t.title))
+            store[t.uuid] = t
+          })
+        }, 'GET')
     }
 
     $(function() {
@@ -102,6 +139,30 @@
         $('#modify').change(() => render())
         $('#notesParse').click(() => parseNotes())
         $('#tabParse').click(() => parseTab())
+
+        $('#fetch').click(() => {
+          const uuid = $('#existing').val()
+          progression = store[uuid].progression.split(' ')
+          $('#title').val(store[uuid].title)
+          current = store[uuid]
+          render()
+        })
+
+        $('#save').click(() => {
+          if (current === null) {
+            tabRequest(() => refreshTitles(), 'POST', {
+              title: $('#title').val(),
+              progression: progression.join(' ')
+            })
+          } else {
+            tabRequest(() => refreshTitles(), 'PUT', {
+              title: $('#title').val(),
+              progression: progression.join(' ')
+            }, current.uuid)
+          }
+        })
+
+        refreshTitles()
 
         const row = $('<tr><td></td></tr>')
         for (let i = 0; i <= 12; i++) {
@@ -122,8 +183,7 @@
             }
             $('#neck').append(row)
         })
-        
-        render()  
+        render()
     })
 
 
@@ -258,6 +318,10 @@
 <body>
     <table id="neck">
     </table>
+    <input id='title' cols=150> <button id = "save">Save</button>
+    <p>
+    <select id = "existing"></select> <button id = "fetch">Fetch</button>
+    <p>
     <button id = 'space'>Add space</button>
     <button id = 'newline'>Newline</button>
     <p></p>
