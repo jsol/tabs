@@ -1,0 +1,274 @@
+<html>
+<head>
+        <style>
+                #neck td {
+                    border: 1px solid black;
+                    width: 60px;
+                    text-align: center;
+                    }
+                .band {
+                    background-color: rgb(200, 200, 170);
+                }
+                .empty {
+                    background-color: rgb(120, 120, 90);
+                    width: 45px;
+                }
+                #notes {
+                    width: 800px;
+                }
+                h1 {color: red;}
+                p {color: blue;}
+              </style>
+
+        <script
+        src="https://code.jquery.com/jquery-3.4.1.js"
+        integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU="
+        crossorigin="anonymous"></script>
+    <script>
+
+    let progression = []
+
+    function add(note) {
+        progression.push(note)
+        render()
+    }
+
+    function parseNotes() {
+        progression.length = 0
+        $('#notes').val().split(' ').forEach(note => {
+            if (note != '') {
+                progression.push(note)
+            }
+        })
+        render()
+    }
+
+    function parseTab() {
+        progression.length = 0
+        const tab = $('#tab').text().split('\n')
+        const lines = {}
+        tab.forEach(l => {
+            if (l.indexOf('|') > 0) {
+                const d = l.split('|')
+                const base = d[0].trim()
+                if (!lines[base]) {
+                    lines[base] = ''
+                }
+                lines[base] += d[1].trim()
+            }
+        })
+
+        console.log(lines)
+        let i = 0
+        while (i < 1000) {
+            let ok = false
+            Object.keys(lines).forEach(line => {
+                if (lines[line].length > i) {
+                    ok = true
+                } else {
+                    return
+                }
+                if (lines[line] !== undefined && lines[line][i] !== '-') {
+                    let pos = scale.indexOf(line)
+                    if (pos >= 0) {
+                        pos += parseInt(lines[line][i], 10)
+                        progression.push(scale[pos])
+                    }
+                }
+            })
+            i++
+            if (!ok) {
+                break
+            }
+        }
+        render()
+    }
+
+    const guitarneck = ['E4', 'B3', 'G3', 'D3', 'A2', 'E2']
+    const mandolinneck = ['E5', 'A4', 'D4', 'G3']
+    const banjoneck = ['D4', 'B3', 'G3', 'D3', 'G4']
+
+    const rawscale = [ 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    const scale = []
+
+    for (let i = 1; i <= 10; i ++) {
+        rawscale.forEach(note => scale.push(note + i))
+    }
+
+    $(function() {
+        $('#newline').click(() => add('|'))
+        $('#space').click(() => add(' '))
+        $('#instrument').change(() => render())
+        $('#modify').change(() => render())
+        $('#notesParse').click(() => parseNotes())
+        $('#tabParse').click(() => parseTab())
+
+        const row = $('<tr><td></td></tr>')
+        for (let i = 0; i <= 12; i++) {
+            row.append($('<td>' + i + '</td>'))
+        }
+        $('#neck').append(row)
+
+        guitarneck.forEach(base => {
+            const row = $('<tr><td>' + base + '</td></tr>')
+            let neckClass = 'empty'
+            for (let i = 0; i <= 12; i++) {
+                row.append($('<td>X</td>').click(() => {
+                    let pos = scale.indexOf(base)
+                    pos += i
+                    add(scale[pos])
+                }).addClass(neckClass))
+                neckClass = 'band'
+            }
+            $('#neck').append(row)
+        })
+        
+        render()  
+    })
+
+
+    function findLowest(notes) {
+        let lowest = scale.length
+        notes.forEach(note => {
+            const val = scale.indexOf(note)
+            if (val < lowest && val >= 0) {
+                lowest = val
+            }
+        })
+        return lowest
+    }
+
+    function findHighest(notes) {
+        let highest = 0
+        notes.forEach(note => {
+            const val = scale.indexOf(note)
+            if (val > highest) {
+                highest = val
+            }
+        })
+        return highest
+    }
+
+    function modify(notes, mod) {
+        if (mod === 0) {
+            return notes
+        }
+
+        const nnotes = []
+        notes.forEach(note => {
+            if (note === '|' || note === ' ') {
+                nnotes.push(note)
+                return
+            }
+
+            const letter = note.slice(0, -1)
+            let number = parseInt(note.slice(-1), 10)
+
+            console.log(`XX ${letter} - ${number}`)
+            number += mod
+            nnotes.push(`${letter}${number}`)
+        })
+
+        return nnotes
+    }
+
+    function render() {
+        let neck = null
+        $('#notes').val(progression.join(' '))
+        console.log(progression)
+        switch($('#instrument').val()) {
+            case 'guitar':
+                neck = guitarneck
+                break;
+            case 'banjo':
+                neck = banjoneck
+                break;
+            case 'mandolin':
+                neck = mandolinneck
+                break;
+        }
+
+        const result = {}
+        let tab = ''
+
+        neck.forEach(base => {
+            result[base] = base + ' | -'
+        })
+
+        const modprog = modify(progression, parseInt($('#modify').val(), 10))
+
+        const li = findLowest(neck)
+        const ln = findLowest(modprog)
+
+        console.log (`Low instrumet: ${li} vs ${ln}`)
+        if ( li > ln) {
+            $('#tab').text('Cannot print progression, ' + scale[ln] + ' is lower than ' + scale[li])
+            return
+        }
+
+        modprog.forEach(note => {
+
+            if (note === ' ') {
+                neck.forEach(base => {
+                    result[base] += '--'
+                })
+                return;
+            }
+
+            if (note === '|') {
+                neck.forEach(base => {
+                  tab += result[base] + '\n'
+                  result[base] = base + ' | -'
+                })
+                tab += '\n\n'
+                return;
+            }
+
+            let candidate = note;
+            let offset = 0
+            while (neck.indexOf(candidate) < 0 && offset <= 100) {
+                console.log(candidate)
+                const p = scale.lastIndexOf(candidate)
+                candidate = scale[p - 1]
+                offset ++
+            }
+
+            if (offset >= 100) {
+                $('#tab').text('Cannot print progression, note ' + note + ' could not be found')
+                return
+            }
+
+            neck.forEach(base => {
+                if (base === candidate) {
+                    result[base] += '-' + offset
+                } else {
+                    result[base] += '--'
+                }
+            })
+        })
+
+        neck.forEach(base => {
+            tab += result[base] + '\n'
+        })
+        $('#tab').text(tab)
+    }
+
+    </script>
+</head>
+<body>
+    <table id="neck">
+    </table>
+    <button id = 'space'>Add space</button>
+    <button id = 'newline'>Newline</button>
+    <p></p>
+    <select id='instrument'><option value='guitar'>Guitar<option value='mandolin'>Mandolin<Option value='banjo'>Banjo</option></select>
+    <select id='modify'><option value='-2'>-2<option value='-1'>-1<Option value='0' selected>0</option><option value='1'>+1<option value='2'>+2</select>
+    <p></p>
+    <textarea id="tab" cols=150 rows=40></textarea>
+    <button id = 'tabParse'>Parse tab</button>
+    <p></p>
+    <input id='notes' cols=150 rows=1>
+    <p></p>
+    <button id = 'notesParse'>Parse notes</button>
+</body>
+</html>
