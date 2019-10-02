@@ -5,7 +5,8 @@
                     border: 1px solid black;
                     width: 60px;
                     text-align: center;
-                    }
+                    user-select: none;
+                }
                 .band {
                     background-color: rgb(200, 200, 170);
                 }
@@ -124,9 +125,12 @@
         render()
     }
 
-    const guitarneck = ['E4', 'B3', 'G3', 'D3', 'A2', 'E2']
-    const mandolinneck = ['E5', 'A4', 'D4', 'G3']
-    const banjoneck = ['D4', 'B3', 'G3', 'D3', 'G4']
+    const instruments = {
+      guitar: ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'],
+      mandolin: ['E5', 'A4', 'D4', 'G3'],
+      banjo: ['D4', 'B3', 'G3', 'D3', 'G4'],
+      bass: ['G2', 'D2', 'A1', 'E1']
+    }
 
     const rawscale = [ 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
     const scale = []
@@ -183,7 +187,10 @@
 
         $('#save').click(() => {
           if (current === null) {
-            tabRequest(() => refreshTitles(), 'POST', {
+            tabRequest(data => {
+                current = data
+                refreshTitles()
+              }, 'POST', {
               title: $('#title').val(),
               progression: progression.join(' ')
             })
@@ -195,6 +202,10 @@
           }
         })
 
+        Object.keys(instruments).forEach(i => {
+          $('#instrument').append($('<option>', { value: i }).text(i.replace(/^./, i[0].toUpperCase())))
+        })
+
         refreshTitles()
 
         const row = $('<tr><td></td></tr>')
@@ -203,7 +214,7 @@
         }
         $('#neck').append(row)
 
-        guitarneck.forEach(base => {
+        instruments.guitar.forEach(base => {
             const row = $('<tr><td>' + base + '</td></tr>')
             let neckClass = 'empty'
             for (let i = 0; i <= 12; i++) {
@@ -216,6 +227,7 @@
             }
             $('#neck').append(row)
         })
+
         render()
     })
 
@@ -253,19 +265,9 @@
     }
 
     function render() {
-        let neck = null
         $('#notes').val(progression.join(' ').replace(/\| /g, '|\n'))
-        switch($('#instrument').val()) {
-            case 'guitar':
-                neck = guitarneck
-                break;
-            case 'banjo':
-                neck = banjoneck
-                break;
-            case 'mandolin':
-                neck = mandolinneck
-                break;
-        }
+        const id = $('#instrument').val().toLowerCase()
+        const neck = instruments[id]
 
         const result = {}
         let tab = ''
@@ -376,7 +378,7 @@
     <p>
     <input id='title' cols=150> <button id = "save">Save</button>
     <p></p>
-    <select id='instrument'><option value='guitar'>Guitar<option value='mandolin'>Mandolin<Option value='banjo'>Banjo</option></select>
+    <select id='instrument'></select>
     <select id='modify'><option value='-2'>-2<option value='-1'>-1<Option value='0' selected>0</option><option value='1'>+1<option value='2'>+2</select>
     <p></p>
     <div id = "tabcontainer"></div>

@@ -91,7 +91,7 @@ module.exports = db => {
 
   router.get('/', (req, res) => {
     try {
-      db.query('SELECT uuid, title, progression FROM `tabs`', [], (error, result) => {
+      db.query('SELECT uuid, title, progression FROM `tabs` ORDER BY title', [], (error, result) => {
         if (error) {
           console.log(error)
           return res.status(500).end()
