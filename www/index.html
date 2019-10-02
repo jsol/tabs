@@ -16,6 +16,13 @@
                 #notes {
                     width: 800px;
                 }
+                .active {
+                    background-color: rgb(200, 256, 200);
+                }
+                .tabs {
+                  font-family: monospace, monospace;
+                  padding-bottom: 20px;
+                }
                 h1 {color: red;}
                 p {color: blue;}
               </style>
@@ -26,11 +33,62 @@
         crossorigin="anonymous"></script>
     <script>
 
-    let progression = []
+    let ctrlIsPressed = false
+    let ctrlIsUsed = false
+    $(document).keydown(event => {
+      if(event.which === 17) {
+        ctrlIsPressed = true
+        ctrlIsUsed = false
+      }
+    })
 
-    function add(note) {
-        progression.push(note)
+    $(document).keyup(() => {
+      if (ctrlIsPressed) {
+         ctrlIsPressed = false
+         if (ctrlIsUsed) {
+           progPos ++
+         }
+         render()
+      }
+    })
+
+
+    let progression = []
+    let progPos = 0
+
+    function add(note, multi) {
+      if (multi && ctrlIsPressed) {
+        if (progPos >= progression.length) {
+          progression.push(note)
+        } else {
+          progression[progPos] += '+' + note
+        }
+        ctrlIsUsed = true
         render()
+        return
+      }
+
+        if (progPos >= progression.length) {
+          progression.push(note)
+          progPos = progression.length
+        } else {
+          progression.splice(progPos, 0, note)
+          progPos ++
+        }
+
+        render()
+    }
+
+    function remove() {
+      if (progPos < progression.length) {
+        progression.splice(progPos, 1)
+      }
+      render()
+    }
+
+    function tabClicked (pos) {
+      progPos = pos
+      render()
     }
 
     function tabRequest(success, type, data, id) {
@@ -54,52 +112,15 @@
 
     function parseNotes() {
         progression.length = 0
-        $('#notes').val().split(' ').forEach(note => {
+        $('#notes').val().replace(/\n/g, ' ').split(' ').forEach(note => {
             if (note != '') {
+                if (note === ' ') {
+                   note = '-'
+                }
                 progression.push(note)
             }
         })
-        render()
-    }
-
-    function parseTab() {
-        progression.length = 0
-        const tab = $('#tab').text().split('\n')
-        const lines = {}
-        tab.forEach(l => {
-            if (l.indexOf('|') > 0) {
-                const d = l.split('|')
-                const base = d[0].trim()
-                if (!lines[base]) {
-                    lines[base] = ''
-                }
-                lines[base] += d[1].trim()
-            }
-        })
-
-        console.log(lines)
-        let i = 0
-        while (i < 1000) {
-            let ok = false
-            Object.keys(lines).forEach(line => {
-                if (lines[line].length > i) {
-                    ok = true
-                } else {
-                    return
-                }
-                if (lines[line] !== undefined && lines[line][i] !== '-') {
-                    let pos = scale.indexOf(line)
-                    if (pos >= 0) {
-                        pos += parseInt(lines[line][i], 10)
-                        progression.push(scale[pos])
-                    }
-                }
-            })
-            i++
-            if (!ok) {
-                break
-            }
-        }
+        progPos = progression.length
         render()
     }
 
@@ -119,7 +140,6 @@
 
     function refreshTitles() {
         tabRequest(res => {
-          console.log(res)
           store = {}
           $('#existing')
             .find('option')
@@ -132,13 +152,26 @@
         }, 'GET')
     }
 
+    function copyPaste() {
+      const sel = window.getSelection()
+      const a = sel.baseNode.parentElement.id.split('-')[1]
+      const b = sel.extentNode.parentElement.id.split('-')[1]
+
+      const start = Math.min(a, b)
+      const stop = Math.max(a, b)
+
+      progression.push(...progression.slice(start, stop + 1))
+      render()
+    }
+
     $(function() {
         $('#newline').click(() => add('|'))
-        $('#space').click(() => add(' '))
+        $('#space').click(() => add('-'))
+        $('#remove').click(() => remove())
         $('#instrument').change(() => render())
         $('#modify').change(() => render())
         $('#notesParse').click(() => parseNotes())
-        $('#tabParse').click(() => parseTab())
+        $('#copy').click(() => copyPaste())
 
         $('#fetch').click(() => {
           const uuid = $('#existing').val()
@@ -177,7 +210,7 @@
                 row.append($('<td>X</td>').click(() => {
                     let pos = scale.indexOf(base)
                     pos += i
-                    add(scale[pos])
+                    add(scale[pos], true)
                 }).addClass(neckClass))
                 neckClass = 'band'
             }
@@ -185,7 +218,6 @@
         })
         render()
     })
-
 
     function findLowest(notes) {
         let lowest = scale.length
@@ -198,25 +230,14 @@
         return lowest
     }
 
-    function findHighest(notes) {
-        let highest = 0
-        notes.forEach(note => {
-            const val = scale.indexOf(note)
-            if (val > highest) {
-                highest = val
-            }
-        })
-        return highest
-    }
-
     function modify(notes, mod) {
         if (mod === 0) {
-            return notes
+            return notes.slice() // should always return a copy
         }
 
         const nnotes = []
         notes.forEach(note => {
-            if (note === '|' || note === ' ') {
+            if (note === '|' || note === ' ' || note === '-') {
                 nnotes.push(note)
                 return
             }
@@ -224,7 +245,6 @@
             const letter = note.slice(0, -1)
             let number = parseInt(note.slice(-1), 10)
 
-            console.log(`XX ${letter} - ${number}`)
             number += mod
             nnotes.push(`${letter}${number}`)
         })
@@ -234,8 +254,7 @@
 
     function render() {
         let neck = null
-        $('#notes').val(progression.join(' '))
-        console.log(progression)
+        $('#notes').val(progression.join(' ').replace(/\| /g, '|\n'))
         switch($('#instrument').val()) {
             case 'guitar':
                 neck = guitarneck
@@ -252,65 +271,95 @@
         let tab = ''
 
         neck.forEach(base => {
-            result[base] = base + ' | -'
+          result[base] = $('<div>' + base + ' | -</div>')
         })
 
         const modprog = modify(progression, parseInt($('#modify').val(), 10))
 
+        modprog.push('-')
+
         const li = findLowest(neck)
         const ln = findLowest(modprog)
 
-        console.log (`Low instrumet: ${li} vs ${ln}`)
+        $('.tabs').remove()
+        $('#tabcontainer').text('')
+
         if ( li > ln) {
-            $('#tab').text('Cannot print progression, ' + scale[ln] + ' is lower than ' + scale[li])
+            $('#tabcontainer').text('Cannot print progression, ' + scale[ln] + ' is lower than ' + scale[li])
             return
         }
 
-        modprog.forEach(note => {
+        const addTab = (base, note, pos) => {
+          let posclass = 'inactive'
+          if (progPos === pos) {
+            posclass = 'active'
+          }
+          result[base]
+            .append($('<span>-</span>').attr('id', base + 'x-' + pos))
+            .append(
+            $('<span>' + note +'</span>')
+              .addClass(posclass)
+              .attr('id', base + '-' + pos)
+              .click(() => tabClicked(pos))
+          )
+        }
 
-            if (note === ' ') {
+        modprog.forEach((note, pos) => {
+            if (note === ' ' || note === '-') {
                 neck.forEach(base => {
-                    result[base] += '--'
+                  addTab(base, '-', pos)
                 })
                 return;
             }
 
             if (note === '|') {
-                neck.forEach(base => {
-                  tab += result[base] + '\n'
-                  result[base] = base + ' | -'
-                })
-                tab += '\n\n'
-                return;
+              const $div = $('<div></div>')
+              neck.forEach(base => {
+                $div.append(result[base])
+                result[base] = $('<div>' + base + ' | -</div>')
+              })
+              $div.addClass('tabs')
+              $('#tabcontainer').append($div)
+              return;
             }
 
-            let candidate = note;
-            let offset = 0
-            while (neck.indexOf(candidate) < 0 && offset <= 100) {
-                console.log(candidate)
-                const p = scale.lastIndexOf(candidate)
-                candidate = scale[p - 1]
-                offset ++
-            }
+            const parts = note.split('+')
+            const toAdd = {}
+            let blank = '-'
+            parts.forEach(note => {
+              let candidate = note;
+              let offset = 0
+              while (neck.indexOf(candidate) < 0 && offset <= 100) {
+                  const p = scale.lastIndexOf(candidate)
+                  candidate = scale[p - 1]
+                  offset ++
+              }
 
-            if (offset >= 100) {
-                $('#tab').text('Cannot print progression, note ' + note + ' could not be found')
-                return
-            }
+              if (offset >= 100) {
+                  $('#tabcontainer').text('Cannot print progression, note ' + note + ' could not be found')
+                  return
+              }
+
+              toAdd[candidate] = '' + offset
+              if (toAdd[candidate].length > blank.length) {
+                blank = '-'.repeat(toAdd[candidate].length)
+              }
+            })
 
             neck.forEach(base => {
-                if (base === candidate) {
-                    result[base] += '-' + offset
-                } else {
-                    result[base] += '--'
-                }
+              if (toAdd[base]) {
+                addTab(base, toAdd[base], pos)
+              } else {
+                addTab(base, blank, pos)
+              }
             })
         })
-
+        const $div = $('<div></div>')
         neck.forEach(base => {
-            tab += result[base] + '\n'
+            $div.append(result[base])
         })
-        $('#tab').text(tab)
+        $div.addClass('tabs')
+        $('#tabcontainer').append($div)
     }
 
     </script>
@@ -318,20 +367,21 @@
 <body>
     <table id="neck">
     </table>
-    <input id='title' cols=150> <button id = "save">Save</button>
+    <button id = 'space'>Space</button>
+    <button id = 'newline'>New line</button>
+    <button id = 'remove'>Remove note</button>
+    <button id = 'copy'>Copy-paste</button>
     <p>
     <select id = "existing"></select> <button id = "fetch">Fetch</button>
     <p>
-    <button id = 'space'>Add space</button>
-    <button id = 'newline'>Newline</button>
+    <input id='title' cols=150> <button id = "save">Save</button>
     <p></p>
     <select id='instrument'><option value='guitar'>Guitar<option value='mandolin'>Mandolin<Option value='banjo'>Banjo</option></select>
     <select id='modify'><option value='-2'>-2<option value='-1'>-1<Option value='0' selected>0</option><option value='1'>+1<option value='2'>+2</select>
     <p></p>
-    <textarea id="tab" cols=150 rows=40></textarea>
-    <button id = 'tabParse'>Parse tab</button>
+    <div id = "tabcontainer"></div>
     <p></p>
-    <input id='notes' cols=150 rows=1>
+    <textarea id='notes' cols=150 rows=10></textarea>
     <p></p>
     <button id = 'notesParse'>Parse notes</button>
 </body>
