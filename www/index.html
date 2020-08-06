@@ -129,7 +129,8 @@
       guitar: ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'],
       mandolin: ['E5', 'A4', 'D4', 'G3'],
       banjo: ['D4', 'B3', 'G3', 'D3', 'G4'],
-      bass: ['G2', 'D2', 'A1', 'E1']
+      bass: ['G2', 'D2', 'A1', 'E1'],
+      ukelele: ['A4', 'E4', 'C4', 'G4']
     }
 
     const rawscale = [ 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -176,6 +177,16 @@
         $('#modify').change(() => render())
         $('#notesParse').click(() => parseNotes())
         $('#copy').click(() => copyPaste())
+        for (let i = -5; i <= 6; i++) {
+          if (i === 0) {
+             $('#modifyNote').append($('<option>').text(i).attr('selected','selected'))
+          } else if ( i < 0) {
+            $('#modifyNote').append($('<option>').text(i))
+          } else {
+            $('#modifyNote').append($('<option>').text('+' + i))
+          }
+        }
+        $('#modifyNote').change(() => render())
 
         $('#fetch').click(() => {
           const uuid = $('#existing').val()
@@ -242,8 +253,8 @@
         return lowest
     }
 
-    function modify(notes, mod) {
-        if (mod === 0) {
+    function modify(notes, mod, modNotes) {
+        if (mod === 0 && modNotes === 0) {
             return notes.slice() // should always return a copy
         }
 
@@ -254,11 +265,20 @@
                 return
             }
 
-            const letter = note.slice(0, -1)
-            let number = parseInt(note.slice(-1), 10)
+            if (modNotes !== 0) {
+              let pos = scale.indexOf(note)
+              pos += modNotes
+              note = scale[pos]
+            }
 
-            number += mod
-            nnotes.push(`${letter}${number}`)
+            if (mod !== 0) {
+              const letter = note.slice(0, -1)
+              let number = parseInt(note.slice(-1), 10)
+
+              number += mod
+              note = `${letter}${number}`
+            }
+            nnotes.push(note)
         })
 
         return nnotes
@@ -276,7 +296,7 @@
           result[base] = $('<div>' + base + ' | -</div>')
         })
 
-        const modprog = modify(progression, parseInt($('#modify').val(), 10))
+        const modprog = modify(progression, parseInt($('#modify').val(), 10), parseInt($('#modifyNote').val(), 10))
 
         modprog.push('-')
 
@@ -380,6 +400,7 @@
     <p></p>
     <select id='instrument'></select>
     <select id='modify'><option value='-2'>-2<option value='-1'>-1<Option value='0' selected>0</option><option value='1'>+1<option value='2'>+2</select>
+    <select id='modifyNote'></select>
     <p></p>
     <div id = "tabcontainer"></div>
     <p></p>
