@@ -27,4 +27,6 @@ app.use('/v1/tab', tabRouter(dbPool))
 
 app.use('/', express.static(path.join(__dirname, '../www')))
 
-app.listen(process.env.APP_PORT)
+app.listen(process.env.APP_PORT, () => {
+  console.log('Running on port', process.env.APP_PORT)
+})
