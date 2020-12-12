@@ -1,3 +1,10 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: large;
+}
+button#fetch {
+    background-color: limegreen;
+}
 #neck td {
     border: 1px solid black;
     width: 60px;
@@ -21,5 +28,3 @@
   font-family: monospace, monospace;
   padding-bottom: 20px;
 }
-h1 {color: red;}
-p {color: blue;}
