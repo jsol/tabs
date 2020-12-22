@@ -1,0 +1,30 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: large;
+}
+button#fetch {
+    background-color: limegreen;
+}
+#neck td {
+    border: 1px solid black;
+    width: 60px;
+    text-align: center;
+    user-select: none;
+}
+.band {
+    background-color: rgb(200, 200, 170);
+}
+.empty {
+    background-color: rgb(120, 120, 90);
+    width: 45px;
+}
+#notes {
+    width: 800px;
+}
+.active {
+    background-color: rgb(200, 256, 200);
+}
+.tabs {
+  font-family: monospace, monospace;
+  padding-bottom: 20px;
+}
