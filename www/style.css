@@ -27,4 +27,17 @@ button#fetch {
 .tabs {
   font-family: monospace, monospace;
   padding-bottom: 20px;
+  letter-spacing: 0.1em;
+}
+.chords {
+  position: relative;
+  font-family: monospace, monospace;
+  padding-bottom: 20px;
+  letter-spacing: 0.1em;
+  margin-left: 0px;
+  padding-left: 0px;
+}
+
+.active {
+    background-color: limegreen;
 }

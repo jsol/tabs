@@ -1,9 +1,36 @@
 let ctrlIsPressed = false
 let ctrlIsUsed = false
+let modChords = false
+
+function chordsButton() {
+  modChords = !modChords
+  $('#addChords').toggleClass('active')
+}
+
 $(document).keydown(event => {
   if (event.which === 17) {
     ctrlIsPressed = true
     ctrlIsUsed = false
+  }
+
+  if (modChords) {
+    if (event.key === 'Delete') {
+      delete chords[progPos]
+    }
+
+    if (event.key === 'Backspace') {
+      chords[progPos] = chords[progPos].slice(0, -1)
+    }
+
+    if (event.key.length === 1) {
+      if (!chords[progPos]) {
+        chords[progPos] = ''
+      }
+      chords[progPos] += event.key
+    }
+
+    const $chors = $('#chors')
+    render()
   }
 })
 
@@ -19,6 +46,7 @@ $(document).keyup(() => {
 
 
 let progression = []
+let chords = {}
 let progPos = 0
 
 function add(note, multi) {
@@ -141,6 +169,8 @@ $(function () {
   $('#modify').change(() => render())
   $('#notesParse').click(() => parseNotes())
   $('#copy').click(() => copyPaste())
+  $('#addChords').click(() => chordsButton())
+
   for (let i = -5; i <= 6; i++) {
     if (i === 0) {
       $('#modifyNote').append($('<option>').text(i).attr('selected', 'selected'))
@@ -155,6 +185,7 @@ $(function () {
   $('#fetch').click(() => {
     const uuid = $('#existing').val()
     progression = store[uuid].progression.split(' ')
+    chords = store[uuid].chords
     $('#title').val(store[uuid].title)
     current = store[uuid]
     render()
@@ -167,12 +198,14 @@ $(function () {
         refreshTitles()
       }, 'POST', {
         title: $('#title').val(),
-        progression: progression.join(' ')
+        progression: progression.join(' '),
+        chords: chords
       })
     } else {
       tabRequest(() => refreshTitles(), 'PUT', {
         title: $('#title').val(),
-        progression: progression.join(' ')
+        progression: progression.join(' '),
+        chords: chords
       }, current.uuid)
     }
   })
@@ -215,6 +248,40 @@ function findLowest(notes) {
     }
   })
   return lowest
+}
+
+function modifyChords(chords, modNotes) {
+  if (modNotes === 0) {
+    return JSON.parse(JSON.stringify(chords))
+  }
+
+  const newChords = {}
+
+  Object.keys(chords).forEach(pos => {
+    const old = chords[pos]
+    let base = old.charAt(0)
+    let other = old.slice(1)
+    if (old.charAt(1) === '#') {
+      base += '#'
+      other = other.slice(1)
+    }
+
+    let sPos = rawscale.indexOf(base)
+    if (sPos < 0) {
+      console.log('Unknown chord!')
+      return JSON.parse(JSON.stringify(chords))
+    }
+
+    sPos += modNotes
+    sPos = sPos % rawscale.length
+
+    if (sPos < 0) {
+      sPos = rawscale.length + sPos
+    }
+
+    newChords[pos] = rawscale[sPos] + other
+  })
+  return newChords
 }
 
 function modify(notes, mod, modNotes) {
@@ -261,6 +328,7 @@ function render() {
   })
 
   const modprog = modify(progression, parseInt($('#modify').val(), 10), parseInt($('#modifyNote').val(), 10))
+  const modchords = modifyChords(chords, parseInt($('#modifyNote').val(), 10))
 
   modprog.push('-')
 
@@ -285,11 +353,14 @@ function render() {
       .append(
         $('<span>' + note + '</span>')
           .addClass(posclass)
+          .addClass('p' + pos)
           .attr('id', base + '-' + pos)
           .click(() => tabClicked(pos))
       )
   }
 
+  let $chordDiv = $('<div></div>')
+  $chordDiv.addClass('chords')
   modprog.forEach((note, pos) => {
     if (note === ' ' || note === '-') {
       neck.forEach(base => {
@@ -305,10 +376,13 @@ function render() {
         result[base] = $('<div>' + base + ' | -</div>')
       })
       $div.addClass('tabs')
+      $('#tabcontainer').append($chordDiv)
       $('#tabcontainer').append($div)
-      return;
+      $chordDiv = $('<div></div>')
+      $chordDiv.addClass('chords')
+      return
     }
-
+    
     const parts = note.split('+')
     const toAdd = {}
     let blank = '-'
@@ -345,5 +419,16 @@ function render() {
     $div.append(result[base])
   })
   $div.addClass('tabs')
+  $('#tabcontainer').append($chordDiv)
   $('#tabcontainer').append($div)
+
+  Object.keys(modchords).forEach(pos => {
+    const $chord = $('<span>' + modchords[pos] + '</span>')
+    const $note = $('.p' + pos).first()
+    console.log($note.offset().left)
+    $chord.css('position', 'absolute')
+    $chord.css('left', $note.offset().left - 8)
+    $note.parent().parent().prev().append($chord)
+  })
+
 }

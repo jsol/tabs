@@ -17,7 +17,8 @@ module.exports = db => {
     const t = {
       uuid: uuid(),
       title: req.body.title,
-      progression: req.body.progression
+      progression: req.body.progression,
+      chords: JSON.stringify(req.body.chords)
     }
 
     try {
@@ -53,7 +54,8 @@ module.exports = db => {
   router.put('/:id', (req, res) => {
     const t = {
       title: req.body.title,
-      progression: req.body.progression
+      progression: req.body.progression,
+      chords: JSON.stringify(req.body.chords)
     }
     try {
       validate(t)
@@ -75,13 +77,20 @@ module.exports = db => {
 
   router.get('/:id', (req, res) => {
     try {
-      db.query('SELECT uuid, title, progression FROM `tabs` WHERE uuid = ?', [req.params.id], (error, result) => {
+      db.query('SELECT uuid, title, progression, chords FROM `tabs` WHERE uuid = ?', [req.params.id], (error, result) => {
         if (error) {
           console.log(error)
           return res.status(500).end()
         }
 
-        res.json(result).end()
+        res.json(result.map(r => {
+          if (!r.chords) {
+            r.chords = {}
+          } else {
+            r.chords = JSON.parse(r.chords)
+          }
+          return r
+        })).end()
       })
     } catch (err) {
       console.log(err)
@@ -91,13 +100,20 @@ module.exports = db => {
 
   router.get('/', (req, res) => {
     try {
-      db.query('SELECT uuid, title, progression FROM `tabs` ORDER BY title', [], (error, result) => {
+      db.query('SELECT uuid, title, progression, chords FROM `tabs` ORDER BY title', [], (error, result) => {
         if (error) {
           console.log(error)
           return res.status(500).end()
         }
 
-        res.json(result).end()
+        res.json(result.map(r => {
+          if (!r.chords) {
+            r.chords = {}
+          } else {
+            r.chords = JSON.parse(r.chords)
+          }
+          return r
+        })).end()
       })
     } catch (err) {
       console.log(err)
